@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Submission {
+  id            String   @id @default(cuid())
+  title         String
+  authorDisplay String   @default("匿名")
+  track         String   // "A" or "B"
+  content       String   // Markdown content
+  attachments   String   @default("[]") // JSON array of {filename, url, size, type}
+  reproLevel    String   @default("na") // spec / code / full_open / na
+  tags          String   @default("[]") // JSON array of discipline tags
+  status        String   @default("open") // open / locked / reviewed
+  badge         String?  // featured / accepted / notable / archived / rejected
+  finalScore    Float?
+  parentId      String?  // If revision of another submission
+
+  submittedAt   DateTime @default(now())
+  lockedAt      DateTime? // submittedAt + 7 days
+  reviewedAt    DateTime?
+
+  versions      Version[]
+  reviews       Review[]
+
+  parent        Submission?  @relation("Revisions", fields: [parentId], references: [id])
+  revisions     Submission[] @relation("Revisions")
+}
+
+model Version {
+  id            String   @id @default(cuid())
+  submissionId  String
+  content       String
+  title         String
+  versionNum    Int
+  createdAt     DateTime @default(now())
+
+  submission    Submission @relation(fields: [submissionId], references: [id])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  submissionId  String
+  model         String   // claude / gpt / gemini
+  dimensions    String   // JSON: array of {name, score, weight, comment}
+  weightedTotal Float
+  badge         String
+  summary       String
+  suggestions   String?
+  rawResponse   String   // Full LLM response
+  createdAt     DateTime @default(now())
+
+  submission    Submission @relation(fields: [submissionId], references: [id])
+}
